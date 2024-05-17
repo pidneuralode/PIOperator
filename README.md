@@ -4,7 +4,7 @@ some physics informed neural operators in classic fluid flows, and all models wi
 
 # Data:
 
-1. Burgers 1d and Burgers 2d flow
+1.Burgers 1d and Burgers 2d flow
 
 2.Darcy flow
 
