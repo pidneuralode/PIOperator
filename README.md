@@ -16,7 +16,7 @@ tips: more datasets will be added
 
 1.Deep-ONet
 
-2.POD-DeepONet
+2.POD-DeepO-Net
 
 3.PI-DeepONet
 
