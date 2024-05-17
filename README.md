@@ -14,7 +14,7 @@ tips: more datasets will be added
 
 # Operator Method(pytorch):
 
-1.DeepONet
+1.Deep-ONet
 
 2.POD-DeepONet
 
@@ -22,7 +22,7 @@ tips: more datasets will be added
 
 4.FNO
 
-5.PI-FNO
+5.PI-FNO 
 
 # reference:
 
