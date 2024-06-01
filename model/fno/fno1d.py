@@ -14,7 +14,11 @@ from torch.nn.parameter import Parameter
 #  1d fourier layer
 ################################################################
 class SpectralConv1d(nn.Module):
-    def __init__(self, in_channels, out_channels, modes1):
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 modes1
+                 ):
         super().__init__()
 
         """
@@ -33,7 +37,7 @@ class SpectralConv1d(nn.Module):
         # (batch, in_channel, x ), (in_channel, out_channel, x) -> (batch, out_channel, x)
         return torch.einsum('bix,iox->box', input, weights)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         batch_size = x.shape[0]
         # Compute Fourier coeffcients up to factor of e^(- something constant)
         x_ft = torch.fft.rfft(x)  # (batch_size, in_channel, x.size//2+1)
@@ -52,7 +56,10 @@ class SpectralConv1d(nn.Module):
 #  FNO for 1d data (sequence data)
 ################################################################
 class FNO1d(nn.Module):
-    def __init__(self, modes, width):
+    def __init__(self,
+                 modes,
+                 width
+                 ):
         super().__init__()
 
         """
@@ -89,7 +96,7 @@ class FNO1d(nn.Module):
         self.fc1 = nn.Linear(self.width, 128)
         self.fc2 = nn.Linear(128, 1)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         # x->(batch, x, input_features) where input_features is (a(x), x)
         x = self.fc0(x)
         # x->(batch, input_features, x)
