@@ -17,14 +17,14 @@ from utils.constants import ACTIVATION
 ################################################################
 class CustomPODDeepONet(nn.Module):
     def __init__(self,
-                 pod_basis,
+                 # pod_basis,
                  branch_layers,
                  trunk_layers,
                  activation_type
                  ):
         super().__init__()
 
-        self.pod_basis = torch.tensor(pod_basis, dtype=torch.float32)
+        # self.pod_basis = torch.tensor(pod_basis, dtype=torch.float32)
 
         if callable(branch_layers[1]):
             # User-defined network
@@ -40,20 +40,21 @@ class CustomPODDeepONet(nn.Module):
     def forward(self, x):
         """
         here we use Dot product to combine the branch network and the trunk network
-        :param x: (x_func, x_loc)
+        :param x: (x_func, x_loc, pod_basis)
         :return:
         """
         x_func = x[0]
-        x_loc = x[0]
+        x_loc = x[1]
+        pod_basis = x[2]
         # Branch net to encode the input function
         x_func = self.branch(x_func)
         # Trunk net to encode the domain of the output function
         if self.trunk is None:
             # POD only
-            x = torch.einsum('bi,ni->bn', x_func, self.pod_basis)
+            x = torch.einsum('bi,ni->bn', x_func, pod_basis)
         else:
             x_loc = self.activation(self.trunk(x_loc))
-            x = torch.einsum('bi,ni->bn', x_func, torch.concat((self.pod_basis, x_loc), 1))
+            x = torch.einsum('bi,ni->bn', x_func, torch.concat((pod_basis, x_loc), 1))
             x += self.b
 
         return x

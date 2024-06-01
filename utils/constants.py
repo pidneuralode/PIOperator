@@ -7,3 +7,10 @@ ACTIVATION = {'gelu': nn.GELU(),
               'leaky_relu': nn.LeakyReLU(0.1),
               'softplus': nn.Softplus(),
               'ELU': nn.ELU()}
+
+
+MODEL_TYPE = {'FNO',
+              'DeepONet',
+              'PINO',
+              'PIDeepONet',
+              'PODDeepONet'}
