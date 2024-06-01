@@ -5,6 +5,7 @@ from tqdm import tqdm
 from timeit import default_timer
 import sys
 import torch.nn.functional as F
+from logger import Logger
 
 
 # fomat the record info with standard process
@@ -38,7 +39,7 @@ def calculate_max_mae(pred_y, test_y):
 
 
 @torch.no_grad()
-def evaluation(config, loss_fn, model, tt_loader, writer, epoch):
+def evaluation(config, loss_fn, model, tt_loader, logger, epoch):
     dsize = 0
     test_loss, test_mre, test_mae, test_max_mae = 0.0, 0.0, 0.0, 0.0
     itrcnt = 0
@@ -69,7 +70,7 @@ def evaluation(config, loss_fn, model, tt_loader, writer, epoch):
     print(f'the test max mae is {test_max_mae}')
     print(f'testing time is: {end_time - start_time:.2f}.seconds')
     print_info = ['test', epoch, test_loss, end_time - start_time, test_mre, test_mae, test_max_mae]
-    writer.writerow(print_info)
+    logger.append(print_info)
 
 
 # train and record corresponding data for the cylinder
@@ -77,64 +78,60 @@ def train(model, optimizer, scheduler, tr_loader, tt_loader, config):
     itrcnt = 0
     loss_fn = nn.MSELoss()
     model_path = config.get('model_path')
-
+    logger = Logger(config['result_file'])
+    logger.set_names(['Train/Test', 'epoch', 'Loss', 'Time', 'MRE', 'MAE', 'MAX_MAE'])
     for epoch in range(config['epochs']):
-        # open the result file
-        assert len(config['result_file']) > 0
-        with open(config['result_file'], 'a') as csv_file:
-            writer = csv.writer(csv_file)
-            # train the model for each epoch and record the history
-            start_time = default_timer()
-            train_size = 0
-            train_loss, train_mre, train_mae, train_max_mae = 0.0, 0.0, 0.0, 0.0
-            for x, y in tqdm(tr_loader):
-                train_size += y.shape[0]
-                optimizer.zero_grad()
-                x, y = x.to(config['device']), y.to(config['device'])
-                if config.get('model_name') == 'vit':
-                    pred_y, pred_y_enc = model(x)
-                    loss = 0.8 * loss_fn(pred_y, y) + 0.2 * loss_fn(pred_y_enc, y)
-                else:
-                    pred_y = model(x)
-                    loss = loss_fn(pred_y, y)
-                loss.backward()
-                train_loss += loss.detach().cpu().numpy()
-                optimizer.step()
-                itrcnt += 1
-                with torch.no_grad():
-                    train_mre += calculate_mre(pred_y, y)
-                    train_mae += calculate_mae(pred_y, y)
-                    train_max_mae += calculate_max_mae(pred_y, y)
-            scheduler.step()
-            end_time = default_timer()
-            train_loss /= itrcnt
-            train_mre /= train_size
-            train_mae /= train_size
-            train_max_mae /= train_size
+        # train the model for each epoch and record the history
+        start_time = default_timer()
+        train_size = 0
+        train_loss, train_mre, train_mae, train_max_mae = 0.0, 0.0, 0.0, 0.0
+        for x, y in tqdm(tr_loader):
+            train_size += y.shape[0]
+            optimizer.zero_grad()
+            x, y = x.to(config['device']), y.to(config['device'])
+            pred_y = model(x)
+            loss = loss_fn(pred_y, y)
+            loss.backward()
+            train_loss += loss.detach().cpu().numpy()
+            optimizer.step()
+            itrcnt += 1
+            with torch.no_grad():
+                train_mre += calculate_mre(pred_y, y)
+                train_mae += calculate_mae(pred_y, y)
+                train_max_mae += calculate_max_mae(pred_y, y)
+        scheduler.step()
+        end_time = default_timer()
+        train_loss /= itrcnt
+        train_mre /= train_size
+        train_mae /= train_size
+        train_max_mae /= train_size
 
-            print(f'training {epoch} th epoch time: {end_time - start_time:.2f}.seconds')
-            print(f'the train loss is {train_loss}')
-            print(f'the train relative mean error is {train_mre}')
-            print(f'the train mae is {train_mae}')
-            print(f'the train max mae is {train_max_mae}')
+        print(f'training {epoch} th epoch time: {end_time - start_time:.2f}.seconds')
+        print(f'the train loss is {train_loss}')
+        print(f'the train relative mean error is {train_mre}')
+        print(f'the train mae is {train_mae}')
+        print(f'the train max mae is {train_max_mae}')
 
-            print_info = ['train', epoch, train_loss, end_time - start_time, train_mre, train_mae, train_max_mae]
-            if epoch % 10 == 0:
-                # record the train loss into the result file
-                writer.writerow(print_info)
+        print_info = ['train', epoch, train_loss, end_time - start_time, train_mre, train_mae, train_max_mae]
 
-                # test the model loss and record the result into the csv files
-                evaluation(config, loss_fn, model, tt_loader, writer, epoch)
+        if epoch % 10 == 0:
+            # record the train loss into the result file
+            logger.append(print_info)
+            # test the model loss and record the result into the csv files
+            evaluation(config, loss_fn, model, tt_loader, logger, epoch)
 
-                # save the voronoi-model
-                if epoch % 500 == 0 and model_path is not None:
-                    torch.save({
-                        'epoch': epoch,
-                        'model_state_dict': model.state_dict(),
-                        'optimizer_state_dict': optimizer.state_dict(),
-                        'loss': loss,
-                        'lr_state_dict': scheduler.state_dict(),
-                    }, model_path)
+            # save the voronoi-model
+            if epoch % 500 == 0 and model_path is not None:
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': loss_fn,
+                    'lr_state_dict': scheduler.state_dict(),
+                }, model_path)
+
+    logger.close()
+
 
 
 if __name__ == '__main__':
