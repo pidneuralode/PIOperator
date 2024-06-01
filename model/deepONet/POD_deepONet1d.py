@@ -22,6 +22,11 @@ class PODDeepONet(nn.Module):
                  activation_type,
                  trunk_layers=None):
         super().__init__()
+
+        if activation_type not in ACTIVATION.keys():
+            raise ValueError("activation_type is not in ACTIVATION")
+        self.activation = ACTIVATION[activation_type]
+
         self.pod_basis = torch.as_tensor(pod_basis, dtype=np.float32)
         self.branch = FNN(branch_layers, activation_type)
         self.trunk = None
@@ -44,7 +49,7 @@ class PODDeepONet(nn.Module):
             # POD only
             x = torch.einsum('bi,ni->bn', x_func, self.pod_basis)
         else:
-            x_loc = self.trunk(x_loc)
+            x_loc = self.activation(self.trunk(x_loc))
             x = torch.einsum('bi,ni->bn', x_func, torch.concat((self.pod_basis, x_loc), 1))
             x += self.b
 
