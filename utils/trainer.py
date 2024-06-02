@@ -53,11 +53,7 @@ def evaluation(config, loss_fn, model, tt_loader, logger, epoch):
         else:
             test_x = torch.tensor(test_x).to(config['device'])
         test_y = test_y.to(config['device'])
-
-        if config.get('model_name') == 'vit':
-            pred_y, pred_y_enc = model(test_x)
-        else:
-            pred_y = model(test_x)
+        pred_y = model(test_x)
 
         test_loss += loss_fn(pred_y, test_y).detach().cpu().numpy()
         test_mre += calculate_mre(pred_y, test_y)
@@ -85,9 +81,9 @@ def train(model, optimizer, scheduler, tr_loader, tt_loader, config):
     model_path = config.get('model_path')
     logger = Logger(config['result_file'])
     logger.set_names(['Train/Test', 'epoch', 'Loss', 'Time', 'MRE', 'MAE', 'MAX_MAE'])
+    start_time = default_timer()
     for epoch in range(config['epochs']):
         # train the model for each epoch and record the history
-        start_time = default_timer()
         train_size = 0
         train_loss, train_mre, train_mae, train_max_mae = 0.0, 0.0, 0.0, 0.0
         for x, y in tqdm(tr_loader):

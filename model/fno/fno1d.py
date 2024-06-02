@@ -43,11 +43,11 @@ class SpectralConv1d(nn.Module):
         x_ft = torch.fft.rfft(x)  # (batch_size, in_channel, x.size//2+1)
 
         # Multiply relevant Fourier modes
-        out_ft = torch.zeros((batch_size, self.out_channels, x.size(-1) // 2 + 1), device=x.device, dtype=torch.float)
-        out_ft[:, :, :self.modes1] = self.compl_mul1d(x_ft, self.weights1)
+        out_ft = torch.zeros((batch_size, self.out_channels, x.size(-1) // 2 + 1), device=x.device, dtype=torch.cfloat)
+        out_ft[:, :, :self.modes1] = self.compl_mul1d(x_ft[:, :, :self.modes1], self.weights1)
 
         # Return to physical space
-        x = torch.fft.ifft(out_ft, n=x.size(-1))
+        x = torch.fft.irfft(out_ft, n=x.size(-1))
 
         return x
 
@@ -103,11 +103,11 @@ class FNO1d(nn.Module):
         x = x.permute(0, 2, 1)
 
         x1 = self.conv0(x)
-        x2 = self.w0(x1)
+        x2 = self.w0(x)
         x = F.relu(x1 + x2)
 
         x1 = self.conv1(x)
-        x2 = self.w1(x1)
+        x2 = self.w1(x)
         x = F.relu(x1 + x2)
 
         x1 = self.conv2(x)
@@ -115,8 +115,8 @@ class FNO1d(nn.Module):
         x = F.relu(x1 + x2)
 
         x1 = self.conv3(x)
-        x2 = self.w3(x1)
-        x = F.relu(x1 + x2)
+        x2 = self.w3(x)
+        x = x1 + x2
 
         # output layers
         # x->(batch, x, input_features)

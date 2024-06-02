@@ -41,8 +41,8 @@ class PODDeepONet(nn.Module):
         :return:
         """
         x_func = x[0]
-        x_loc = x[1]
-        pod_basis = x[2]
+        x_loc = x[1][0]
+        pod_basis = x[2][0]
         # Branch net to encode the input function
         x_func = self.branch(x_func)
         # Trunk net to encode the domain of the output function

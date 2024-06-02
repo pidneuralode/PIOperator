@@ -85,10 +85,10 @@ class Burgers1dBuilder:
         y_data = data['u'][:, ::inter_select].astype(np.float32)
 
         # select data series
-        x_train = x_data[:n_train, :]
-        y_train = y_data[:n_train, :]
-        x_test = x_data[-n_test:, :]
-        y_test = y_data[-n_test:, :]
+        x_train = torch.tensor(x_data[:n_train, :], dtype=torch.float)
+        y_train = torch.tensor(y_data[:n_train, :], dtype=torch.float)
+        x_test = torch.tensor(x_data[-n_test:, :], dtype=torch.float)
+        y_test = torch.tensor(y_data[-n_test:, :], dtype=torch.float)
 
         # cat the locations information
         grid_all = np.linspace(0, 1, 2 ** 13).reshape(2 ** 13, 1).astype(np.float64)
@@ -96,10 +96,10 @@ class Burgers1dBuilder:
         grid = torch.tensor(grid, dtype=torch.float)
         x_train = torch.cat([x_train.reshape(n_train, resolution, 1), grid.repeat(n_train, 1, 1)],
                             dim=2)
-        x_test = torch.cat([x_test.reshape(n_test, resolution, 1), grid.repeat(n_train, 1, 1)],
+        x_test = torch.cat([x_test.reshape(n_test, resolution, 1), grid.repeat(n_test, 1, 1)],
                            dim=2)
 
-        return x_train, y_train, x_test, y_test
+        return x_train, y_train.unsqueeze(2), x_test, y_test.unsqueeze(2)
 
     def process_data_DeepONet(self, data, n_train, n_test, resolution):
         inter_select = self.grid_size // resolution
@@ -127,8 +127,8 @@ class Burgers1dBuilder:
 
         # stack branch input and trunk input
         modes = 32
-        x_train = (x_train[0], x_train[1], v[:, :modes])
-        x_test = (x_test[0], x_test[1], v[:, :modes])
+        x_train = (x_train[0], x_train[1], v[:, :modes].copy())
+        x_test = (x_test[0], x_test[1], v[:, :modes].copy())
 
         return x_train, y_train, x_test, y_test
 
