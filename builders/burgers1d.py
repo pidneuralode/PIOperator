@@ -50,13 +50,16 @@ class Burgers1dBuilder:
         x_train, y_train, x_test, y_test = None, None, None, None
         if model_type == 'FNO':
             x_train, y_train, x_test, y_test = self.process_data_FNO(data_mat, n_train, n_test, resolution)
+            self.train_dataset = Burgers1dDataset(x_train, y_train)
+            self.test_dataset = Burgers1dDataset(x_test, y_test)
         elif model_type == 'DeepONet':
             x_train, y_train, x_test, y_test = self.process_data_DeepONet(data_mat, n_train, n_test, resolution)
+            self.train_dataset = Burgers1dDeepONetDataset(x_train, y_train)
+            self.test_dataset = Burgers1dDeepONetDataset(x_test, y_test)
         elif model_type == 'PODDeepONet':
             x_train, y_train, x_test, y_test = self.process_data_PODDeepONet(data_mat, n_train, n_test, resolution)
-
-        self.train_dataset = Burgers1dDataset(x_train, y_train)
-        self.test_dataset = Burgers1dDataset(x_test, y_test)
+            self.train_dataset = Burgers1dPODDeepONetDataset(x_train, y_train)
+            self.test_dataset = Burgers1dPODDeepONetDataset(x_test, y_test)
 
     def train_dataloader(self) -> DataLoader:
         loader = DataLoader(self.train_dataset,
@@ -136,8 +139,33 @@ class Burgers1dDataset(Dataset):
         self.x = torch.Tensor(x_data)
         self.y = torch.Tensor(y_data)
 
-    def __len__(self, item):
+    def __len__(self):
         return len(self.x)
 
     def __getitem__(self, index):
         return self.x[index], self.y[index]
+
+
+class Burgers1dDeepONetDataset(Dataset):
+    def __init__(self, x_data, y_data):
+        # transform the numpy data to torch data
+        self.branch_x = torch.Tensor(x_data[0])
+        self.trunk_x = 0
+        self.pod_basis = 0
+        if x_data[1] is not None:
+            self.trunk_x = torch.Tensor(x_data[1])
+        if x_data[2] is not None:
+            self.pod_basis = torch.Tensor(x_data[2])
+        self.y = torch.Tensor(y_data)
+
+    def __len__(self):
+        return len(self.branch_x)
+
+    def __getitem__(self, index):
+        return (self.branch_x[index], self.trunk_x, self.pod_basis), self.y[index]
+
+
+class Burgers1dPODDeepONetDataset(Burgers1dDeepONetDataset):
+    def __init__(self, x_data, y_data):
+        # transform the numpy data to torch data
+        super().__init__(x_data, y_data)

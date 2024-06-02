@@ -33,13 +33,13 @@ class DeepONet(nn.Module):
         :return:
         """
         x_func = x[0]
-        x_loc = x[0]
+        x_loc = x[1][0]
         # Branch net to encode the input function
         x_func = self.branch(x_func)
         # Trunk net to encode the domain of the output function
         x_loc = self.trunk(x_loc)
         # Dot product
-        x = torch.einsum("bi,bi->b", x_func, x_loc)
+        x = torch.einsum("bi,ni->bn", x_func, x_loc)
         # Add bias
         x += self.b
 

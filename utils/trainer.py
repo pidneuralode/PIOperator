@@ -5,7 +5,7 @@ from tqdm import tqdm
 from timeit import default_timer
 import sys
 import torch.nn.functional as F
-from logger import Logger
+from .logger import Logger
 
 
 # fomat the record info with standard process
@@ -47,7 +47,12 @@ def evaluation(config, loss_fn, model, tt_loader, logger, epoch):
     for test_x, test_y in tqdm(tt_loader):
         itrcnt += 1
         dsize += test_y.shape[0]
-        test_x, test_y = test_x.to(config['device']), test_y.to(config['device'])
+        if isinstance(test_x, list):
+            for i in range(len(test_x)):
+                test_x[i] = torch.tensor(test_x[i]).to(config['device'])
+        else:
+            test_x = torch.tensor(test_x).to(config['device'])
+        test_y = test_y.to(config['device'])
 
         if config.get('model_name') == 'vit':
             pred_y, pred_y_enc = model(test_x)
@@ -88,7 +93,12 @@ def train(model, optimizer, scheduler, tr_loader, tt_loader, config):
         for x, y in tqdm(tr_loader):
             train_size += y.shape[0]
             optimizer.zero_grad()
-            x, y = x.to(config['device']), y.to(config['device'])
+            if isinstance(x, list):
+                for i in range(len(x)):
+                    x[i] = torch.tensor(x[i]).to(config['device'])
+            else:
+                x = torch.tensor(x).to(config['device'])
+            y = y.to(config['device'])
             pred_y = model(x)
             loss = loss_fn(pred_y, y)
             loss.backward()
@@ -106,15 +116,14 @@ def train(model, optimizer, scheduler, tr_loader, tt_loader, config):
         train_mae /= train_size
         train_max_mae /= train_size
 
-        print(f'training {epoch} th epoch time: {end_time - start_time:.2f}.seconds')
-        print(f'the train loss is {train_loss}')
-        print(f'the train relative mean error is {train_mre}')
-        print(f'the train mae is {train_mae}')
-        print(f'the train max mae is {train_max_mae}')
+        if epoch % 100 == 0:
+            print(f'training {epoch} th epoch time: {end_time - start_time:.2f}.seconds')
+            print(f'the train loss is {train_loss}')
+            print(f'the train relative mean error is {train_mre}')
+            print(f'the train mae is {train_mae}')
+            print(f'the train max mae is {train_max_mae}')
 
-        print_info = ['train', epoch, train_loss, end_time - start_time, train_mre, train_mae, train_max_mae]
-
-        if epoch % 10 == 0:
+            print_info = ['train', epoch, train_loss, end_time - start_time, train_mre, train_mae, train_max_mae]
             # record the train loss into the result file
             logger.append(print_info)
             # test the model loss and record the result into the csv files

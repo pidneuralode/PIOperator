@@ -53,7 +53,6 @@ parser.add_argument('--resolution',
                     default=128,
                     type=int,
                     help='grid size')
-parser.add_argument()
 # resolve the args
 args = parser.parse_args()
 config = {}
@@ -79,8 +78,7 @@ def main():
                                           config['resolution'],
                                           path,
                                           'DeepONet',
-                                          batch_size=config['batch_size'],
-                                          shuffle=True
+                                          batch_size=config['batch_size']
                                           )
 
     # optimizer
@@ -90,7 +88,7 @@ def main():
     scheduler = instantiate_scheduler(optimizer, config)
 
     # train the whole process for cylinder
-    trainer.train(model=burgers_dataloader,
+    trainer.train(model=burgers_model,
                   optimizer=optimizer,
                   scheduler=scheduler,
                   tr_loader=burgers_dataloader.train_dataloader(),

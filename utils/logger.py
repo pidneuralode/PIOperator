@@ -68,7 +68,7 @@ class Logger(object):
     def append(self, numbers):
         assert len(self.names) == len(numbers), 'Numbers do not match names'
         for index, num in enumerate(numbers):
-            self.file.write("{0:.13f}".format(num))
+            self.file.write(str(num))
             self.file.write('\t')
             self.numbers[self.names[index]].append(num)
         self.file.write('\n')
