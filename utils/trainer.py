@@ -138,6 +138,23 @@ def train(model, optimizer, scheduler, tr_loader, tt_loader, config):
     logger.close()
 
 
+def train_PI_DeepONet(model, optimizer, scheduler, tr_loader, tt_loader, config, physic_loss):
+    return
+
+
+@torch.no_grad()
+def evaluation_PI_DeepONet(config, loss_fn, model, tt_loader, logger, epoch, physic_loss):
+    return
+
+
+def train_PINO(model, optimizer, scheduler, tr_loader, tt_loader, config, physic_loss):
+    return
+
+
+@torch.no_grad()
+def evaluation_PINO(config, loss_fn, model, tt_loader, logger, epoch, physic_loss):
+    return
+
 
 if __name__ == '__main__':
     # test mre function
@@ -145,9 +162,3 @@ if __name__ == '__main__':
     y2 = torch.Tensor([[2, 2, 4], [2, 2, 4]])
     print(calculate_mre(y1, y2))
     print('test')
-
-
-
-
-
-

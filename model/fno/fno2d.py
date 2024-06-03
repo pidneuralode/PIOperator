@@ -49,7 +49,7 @@ class SpectralConv2d(nn.Module):
         ))
 
     def compl_mul2d(self, a, b):
-        # (batch, in_channel, x,y ), (in_channel, out_channel, x,y) -> (batch, out_channel, x,y)
+        # (batch, in_channel, x,y ), (in_channel, out_channel, x, y) -> (batch, out_channel, x, y)
         return torch.einsum('bixy,ioxy->boxy', a, b)
 
     def forward(self, x: torch.Tensor):
