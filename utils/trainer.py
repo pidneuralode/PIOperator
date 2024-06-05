@@ -141,18 +141,38 @@ def train(model, optimizer, scheduler, tr_loader, tt_loader, config):
 
 def train_PI_DeepONet(model, optimizer, scheduler, tr_loader, tt_loader, config, physic_loss: Burgers2dPhyLoss):
     ics_loader, bcs_loader, res_loader = tr_loader
-    ics_data, bcs_data, res_data = iter(ics_loader), iter(bcs_loader), iter(res_loader)
-    itrcnt = 0
     loss_fn = nn.MSELoss()
     model_path = config.get('model_path')
     logger = Logger(config['result_file'])
     logger.set_names(['Train/Test', 'epoch', 'Time', 'Data_loss', 'ICS_Loss', 'BCS_Loss', 'RES_Loss'])
     start_time = default_timer()
+
+    # init iteration
+    ics_data = iter(ics_loader)
+    bcs_data = iter(bcs_loader)
+    res_data = iter(res_loader)
+
     for epoch in trange(config['epochs']):
-        # train the model for each epoch and record the history
-        ics_batch = next(ics_data)
-        bcs_batch = next(bcs_data)
-        res_batch = next(res_data)
+        # fetch data
+        try:
+            ics_batch = next(ics_data)
+        except StopIteration:
+            ics_data = iter(ics_loader)
+            ics_batch = next(ics_data)
+
+        try:
+            bcs_batch = next(bcs_data)
+        except StopIteration:
+            bcs_data = iter(bcs_loader)
+            bcs_batch = next(bcs_data)
+
+        try:
+            res_batch = next(res_data)
+        except StopIteration:
+            res_data = iter(res_loader)
+            res_batch = next(res_data)
+
+        # train
         optimizer.zero_grad()
         ics_loss = physic_loss.loss_ics(ics_batch)
         bcs_loss = physic_loss.loss_bcs(bcs_batch)
@@ -160,48 +180,47 @@ def train_PI_DeepONet(model, optimizer, scheduler, tr_loader, tt_loader, config,
         loss = 20 * ics_loss + bcs_loss + res_loss
         loss.backward()
         optimizer.step()
-        itrcnt += 1
         scheduler.step()
-        end_time = default_timer()
+        torch.cuda.empty_cache()  # clear cache
 
         # compute loss
+        end_time = default_timer()
         batch_size = config['batch_size']
-        ics_loss_iter = ics_loss.detach().cpu().numpy() / batch_size
-        bcs_loss_iter = bcs_loss.detach().cpu().numpy() / batch_size
-        res_loss_iter = res_loss.detach().cpu().numpy() / batch_size
+        ics_loss_iter = ics_loss.detach().cpu().numpy()
+        bcs_loss_iter = bcs_loss.detach().cpu().numpy()
+        res_loss_iter = res_loss.detach().cpu().numpy()
+        total_loss = loss.detach().cpu().numpy()
 
-        if epoch % 1 == 0:
+        # Clear unnecessary references
+        del ics_batch, bcs_batch, res_batch, ics_loss, bcs_loss, res_loss
 
-            print(f'training {epoch} th epoch time: {end_time - start_time:.2f}.seconds')
-            print(f'the loss is {loss.detach().cpu().numpy()/batch_size}')
-            print(f'the ics loss is {ics_loss_iter}')
-            print(f'the bcs loss is {bcs_loss_iter}')
-            print(f'the res loss is {res_loss_iter}')
+        if epoch % 100 == 0:
+            print(f'Training {epoch}th epoch time: {end_time - start_time:.2f} seconds')
+            print(f'The loss is {total_loss}')
+            print(f'The ICS loss is {ics_loss_iter}')
+            print(f'The BCS loss is {bcs_loss_iter}')
+            print(f'The RES loss is {res_loss_iter}')
 
-            print_info = ['train', epoch, end_time - start_time, 0.,
-                          ics_loss_iter,
-                          bcs_loss_iter,
-                          res_loss_iter]
-            # record the train loss into the result file
+            print_info = ['train', epoch, end_time - start_time, 0.0, ics_loss_iter, bcs_loss_iter, res_loss_iter]
             logger.append(print_info)
-            # test the model loss and record the result into the csv files
+
+            # record test results
             evaluation_PI_DeepONet(config, loss_fn, model, tt_loader, logger, epoch)
 
-            # save the voronoi-model
+            # save model
             if epoch % 50 == 0 and model_path is not None:
-                torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'loss': loss_fn,
-                    'lr_state_dict': scheduler.state_dict(),
-                }, model_path)
-
-        torch.cuda.empty_cache()
+                torch.save(
+                    {
+                        'epoch': epoch,
+                        'model_state_dict': model.state_dict(),
+                        'optimizer_state_dict': optimizer.state_dict(),
+                        'loss': loss_fn,
+                        'lr_state_dict': scheduler.state_dict(),
+                    },
+                    model_path)
 
     logger.close()
-    pass
-
+    print("Training completed.")
 
 @torch.no_grad()
 def evaluation_PI_DeepONet(config, loss_fn, model, tt_loader, logger, epoch):

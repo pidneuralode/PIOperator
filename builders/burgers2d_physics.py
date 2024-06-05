@@ -114,10 +114,10 @@ class Burgers2dBuilder:
         :return:
         """
         t_bc = np.random.rand(self.P_bcs_train).reshape((self.P_bcs_train, 1))
-        # u(0, t)
+        # u(t, 0)
         x_bc1 = np.zeros((self.P_bcs_train, 1))
-        # u(1, t)
-        x_bc2 = np.zeros((self.P_bcs_train, 1))
+        # u(t, 1)
+        x_bc2 = np.ones((self.P_bcs_train, 1))
 
         y1 = np.hstack([t_bc, x_bc1])
         y2 = np.hstack([t_bc, x_bc2])

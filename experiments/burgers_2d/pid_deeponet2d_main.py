@@ -16,7 +16,7 @@ parser.add_argument('--gpu',
                     help='choice of gpu'
                     )
 parser.add_argument('--batch-size',
-                    default=50000,
+                    default=5000,
                     help='number of batch size to train the model'
                     )
 parser.add_argument('--weight-decay',
@@ -41,12 +41,12 @@ parser.add_argument('--model-path',
                     help='the path to save the neural model'
                     )
 parser.add_argument('--n-train',
-                    default=1000,
+                    default=100,
                     type=int,
                     help='the numbers of trainset'
                     )
 parser.add_argument('--n-test',
-                    default=200,
+                    default=20,
                     type=int,
                     help='the numbers of testset'
                     )
@@ -66,7 +66,7 @@ def main():
     # model
     burgers_model = PIDeepONet([101, 128, 128, 128, 128],
                              [2, 128, 128, 128],
-                             "tanh",).to(device=device)
+                             "relu",).to(device=device)
 
     # load data from cylinder pickle ans csv files
     path = 'E:\\dfno\\PIOperator\\data\\burgers\\2d\\burgers_2d.mat'
