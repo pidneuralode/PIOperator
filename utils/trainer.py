@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
 import csv
-from tqdm import tqdm
+from tqdm import tqdm, trange
 from timeit import default_timer
 import sys
 import torch.nn.functional as F
 from .logger import Logger
+from utils.physics_loss import Burgers2dPhyLoss
 
 
 # fomat the record info with standard process
@@ -138,22 +139,102 @@ def train(model, optimizer, scheduler, tr_loader, tt_loader, config):
     logger.close()
 
 
-def train_PI_DeepONet(model, optimizer, scheduler, tr_loader, tt_loader, config, physic_loss):
-    return
+def train_PI_DeepONet(model, optimizer, scheduler, tr_loader, tt_loader, config, physic_loss: Burgers2dPhyLoss):
+    ics_loader, bcs_loader, res_loader = tr_loader
+    ics_data, bcs_data, res_data = iter(ics_loader), iter(bcs_loader), iter(res_loader)
+    itrcnt = 0
+    loss_fn = nn.MSELoss()
+    model_path = config.get('model_path')
+    logger = Logger(config['result_file'])
+    logger.set_names(['Train/Test', 'epoch', 'Time', 'Data_loss', 'ICS_Loss', 'BCS_Loss', 'RES_Loss'])
+    start_time = default_timer()
+    for epoch in trange(config['epochs']):
+        # train the model for each epoch and record the history
+        ics_batch = next(ics_data)
+        bcs_batch = next(bcs_data)
+        res_batch = next(res_data)
+        optimizer.zero_grad()
+        ics_loss = physic_loss.loss_ics(ics_batch)
+        bcs_loss = physic_loss.loss_bcs(bcs_batch)
+        res_loss = physic_loss.loss_res(res_batch)
+        loss = 20 * ics_loss + bcs_loss + res_loss
+        loss.backward()
+        optimizer.step()
+        itrcnt += 1
+        scheduler.step()
+        end_time = default_timer()
+
+        # compute loss
+        batch_size = config['batch_size']
+        ics_loss_iter = ics_loss.detach().cpu().numpy() / batch_size
+        bcs_loss_iter = bcs_loss.detach().cpu().numpy() / batch_size
+        res_loss_iter = res_loss.detach().cpu().numpy() / batch_size
+
+        if epoch % 1 == 0:
+
+            print(f'training {epoch} th epoch time: {end_time - start_time:.2f}.seconds')
+            print(f'the loss is {loss.detach().cpu().numpy()/batch_size}')
+            print(f'the ics loss is {ics_loss_iter}')
+            print(f'the bcs loss is {bcs_loss_iter}')
+            print(f'the res loss is {res_loss_iter}')
+
+            print_info = ['train', epoch, end_time - start_time, 0.,
+                          ics_loss_iter,
+                          bcs_loss_iter,
+                          res_loss_iter]
+            # record the train loss into the result file
+            logger.append(print_info)
+            # test the model loss and record the result into the csv files
+            evaluation_PI_DeepONet(config, loss_fn, model, tt_loader, logger, epoch)
+
+            # save the voronoi-model
+            if epoch % 50 == 0 and model_path is not None:
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': loss_fn,
+                    'lr_state_dict': scheduler.state_dict(),
+                }, model_path)
+
+        torch.cuda.empty_cache()
+
+    logger.close()
+    pass
 
 
 @torch.no_grad()
-def evaluation_PI_DeepONet(config, loss_fn, model, tt_loader, logger, epoch, physic_loss):
-    return
+def evaluation_PI_DeepONet(config, loss_fn, model, tt_loader, logger, epoch):
+    dsize = 0
+    test_mre = 0.
+    itrcnt = 0
+    start_time = default_timer()
+    for test_x, test_y in tqdm(tt_loader):
+        itrcnt += 1
+        dsize += test_y.shape[0]
+        if isinstance(test_x, list):
+            for i in range(len(test_x)):
+                test_x[i] = torch.tensor(test_x[i]).to(config['device'])
+        else:
+            test_x = torch.tensor(test_x).to(config['device'])
+        test_y = test_y.to(config['device'])
+        pred_y = model(test_x)
+        test_mre += calculate_mre(pred_y, test_y)
+    end_time = default_timer()
+    test_mre /= dsize
+
+    print(f'the mre loss is {test_mre}')
+    print_info = ['test', epoch, end_time - start_time, test_mre, 0., 0., 0.]
+    logger.append(print_info)
 
 
 def train_PINO(model, optimizer, scheduler, tr_loader, tt_loader, config, physic_loss):
-    return
+    pass
 
 
 @torch.no_grad()
 def evaluation_PINO(config, loss_fn, model, tt_loader, logger, epoch, physic_loss):
-    return
+    pass
 
 
 if __name__ == '__main__':

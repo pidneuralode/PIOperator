@@ -11,11 +11,11 @@ from torch.utils.data import DataLoader, Dataset
 from utils.constants import MODEL_TYPE
 
 
-class Burgers1dBuilder:
+class Burgers2dBuilder:
     """Load the Burgers2d_physics dataset.
     """
 
-    def __init__(self, n_train, n_test, path: str, **kwargs):
+    def __init__(self, n_train, n_test, path: str, device, **kwargs):
         self.kwargs = kwargs
 
         # here data is of the shape (number of samples = 2048, grid size = 2^13)
@@ -25,7 +25,6 @@ class Burgers1dBuilder:
         data_path = os.path.expanduser(path)
         data_mat = io.loadmat(data_path)
         # (samples, t, x)
-        u_0_inputs = np.array(data_mat['input'])
         usol = np.array(data_mat['output'])
 
         # some fixed parameters for the number of training examples
@@ -62,9 +61,9 @@ class Burgers1dBuilder:
                                                                             self.P_res_train)
 
         # create the training dataset
-        self.ics_dataset = DataGenerator(u_ics_train, y_ics_train, s_ics_train)
-        self.bcs_dataset = DataGenerator(u_bcs_train, y_bcs_train, s_bcs_train)
-        self.res_dataset = DataGenerator(u_res_train, y_res_train, s_res_train)
+        self.ics_dataset = DataGenerator(u_ics_train, y_ics_train, s_ics_train, device)
+        self.bcs_dataset = DataGenerator(u_bcs_train, y_bcs_train, s_bcs_train, device)
+        self.res_dataset = DataGenerator(u_res_train, y_res_train, s_res_train, device)
 
         # pre-process the test data
         in_test = u0_train[-n_test:, :]
@@ -72,7 +71,7 @@ class Burgers1dBuilder:
         u_test, y_test, s_test = self.generate_test_data(in_test, out_test)
 
         # create the test dataset
-        self.test_dataset = DataGenerator(u_test, y_test, s_test)
+        self.test_dataset = DataGenerator(u_test, y_test, s_test, device)
 
     def generate_training_data(self, generate_function, u0_train, P_train):
         u_train_list = []
@@ -212,12 +211,12 @@ class Burgers1dBuilder:
 
 # Data generator
 class DataGenerator(data.Dataset):
-    def __init__(self, u, y, s,
+    def __init__(self, u, y, s, device,
                  batch_size=64):
         """Initialization"""
-        self.u = torch.tensor(u)
-        self.y = torch.tensor(y)
-        self.s = torch.tensor(s)
+        self.u = torch.tensor(u, dtype=torch.float32).to(device)
+        self.y = torch.tensor(y, dtype=torch.float32).to(device)
+        self.s = torch.tensor(s, dtype=torch.float32).to(device)
 
         self.N = u.shape[0]
         self.batch_size = batch_size
